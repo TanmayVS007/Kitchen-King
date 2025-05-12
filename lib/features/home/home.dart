@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:kitchen_king/features/Maps/map_screen.dart';
 import 'package:kitchen_king/features/notificatinos/notification_screen.dart';
 import 'package:kitchen_king/features/consumption_graph/total_consumption.dart';
 
@@ -80,19 +81,24 @@ class _HomeScreenState extends State<HomeScreen> {
     double width = MediaQuery.of(context).size.width;
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 70,
         automaticallyImplyLeading: false,
-        backgroundColor: const Color(0xFF45484A),
-        title: const Text(
-          "Dashboard",
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        elevation: 20,
+        title: const Text('Dashboard'),
+        centerTitle: true,
       ),
+      // appBar: AppBar(
+      //   toolbarHeight: 70,
+      //   automaticallyImplyLeading: false,
+      //   backgroundColor: const Color(0xFF45484A),
+      //   title: const Text(
+      //     "Dashboard",
+      //     style: TextStyle(
+      //       fontSize: 30,
+      //       fontWeight: FontWeight.bold,
+      //       color: Colors.white,
+      //     ),
+      //   ),
+      //   elevation: 20,
+      // ),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -169,35 +175,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     height: height * .25,
                     width: width * .44,
-                    child: Column(
+                    child: const Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              "Estimate Days",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 5),
+                              child: Text(
+                                "Estimate Days",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             // const Spacer(),
-                            IconButton(
-                              onPressed: () {},
-                              icon: const Icon(
-                                Icons.arrow_forward_ios_sharp,
-                                size: 16,
-                              ),
-                            ),
                           ],
                         ),
-                        const Divider(
+                        Divider(
                           thickness: 2.0,
                           color: Colors.black54,
                         ),
-                        const Text("Day"),
-                        const Text(
+                        Text(
                           "28",
                           style: TextStyle(
                             fontSize: 45,
@@ -349,6 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: IconButton(
                         onPressed: () async {
                           _checkAndRequestLocation();
+                          Navigator.pushNamed(context, MapsScreen.routeName);
                         },
                         icon: const Icon(
                           Icons.gas_meter_outlined,

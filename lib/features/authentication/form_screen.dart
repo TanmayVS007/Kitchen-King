@@ -14,7 +14,7 @@ class FormScreen extends StatefulWidget {
 
 class _FormScreenState extends State<FormScreen> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _noOfFamilityMember = TextEditingController();
+  final TextEditingController _noOfFamiliyMember = TextEditingController();
   final TextEditingController _cookingFrequency = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _houseController = TextEditingController();
@@ -38,7 +38,7 @@ class _FormScreenState extends State<FormScreen> {
       Map<String, dynamic> userData = {
         'name': _nameController.text,
         'mobile': _mobileController.text,
-        'family_members': int.tryParse(_noOfFamilityMember.text) ?? 0,
+        'family_members': int.tryParse(_noOfFamiliyMember.text) ?? 0,
         'cooking_frequency': int.tryParse(_cookingFrequency.text) ?? 0,
         'home': _houseController.text,
         'city': _cityController.text,
@@ -97,12 +97,12 @@ class _FormScreenState extends State<FormScreen> {
                 hintText: 'Enter number of family members (e.g. 2, 3....)',
                 labelText: 'Family Members',
                 type: TextInputType.number,
-                controller: _noOfFamilityMember,
+                controller: _noOfFamiliyMember,
                 icon: Icons.family_restroom_outlined,
               ),
               const SizedBox(height: 20),
               CustomInputField(
-                hintText: 'Weekely frequency of cooking (e.g. 10, 17....)',
+                hintText: 'Weekly frequency of cooking (e.g. 10, 17....)',
                 labelText: 'Cooking Frequency',
                 type: TextInputType.number,
                 controller: _cookingFrequency,

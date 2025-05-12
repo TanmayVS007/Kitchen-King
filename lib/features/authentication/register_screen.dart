@@ -20,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool _isLoading = false;
+    bool isLoading = false;
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
 
@@ -76,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: () async {
                     try {
                       setState(() {
-                        _isLoading = true;
+                        isLoading = true;
                       });
                       UserCredential userCredential = await FirebaseAuth
                           .instance
@@ -89,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         print(userCredential.credential.toString());
                       }
                       setState(() {
-                        _isLoading = false;
+                        isLoading = false;
                       });
                       Navigator.pushReplacementNamed(
                         context,
@@ -97,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       );
                     } catch (e) {
                       setState(() {
-                        _isLoading = false;
+                        isLoading = false;
                       });
                       if (kDebugMode) {
                         print("Error during registration: $e");

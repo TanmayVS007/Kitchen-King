@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kitchen_king/common/bottom_bar.dart';
+import 'package:kitchen_king/features/Maps/map_screen.dart';
 import 'package:kitchen_king/features/authentication/form_screen.dart';
 import 'package:kitchen_king/features/authentication/login_screen.dart';
 import 'package:kitchen_king/features/authentication/register_screen.dart';
@@ -49,6 +50,11 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       return MaterialPageRoute(
         settings: routeSettings,
         builder: (_) => const TotalConsumption(),
+      );
+    case MapsScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const MapsScreen(),
       );
     default:
       return MaterialPageRoute(
