@@ -5,6 +5,7 @@ import 'package:kitchen_king/features/authentication/form_screen.dart';
 import 'package:kitchen_king/features/authentication/login_screen.dart';
 import 'package:kitchen_king/features/authentication/register_screen.dart';
 import 'package:kitchen_king/features/consumption_graph/total_consumption.dart';
+import 'package:kitchen_king/features/daily_consumption/daily_consumption.dart';
 import 'package:kitchen_king/features/home/home.dart';
 import 'package:kitchen_king/features/notificatinos/notification_screen.dart';
 import 'package:kitchen_king/features/profile/profile.dart';
@@ -55,6 +56,11 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       return MaterialPageRoute(
         settings: routeSettings,
         builder: (_) => const MapsScreen(),
+      );
+    case DailyConsumption.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const DailyConsumption(),
       );
     default:
       return MaterialPageRoute(

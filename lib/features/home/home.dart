@@ -1,8 +1,9 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kitchen_king/features/Maps/map_screen.dart';
+import 'package:kitchen_king/features/daily_consumption/daily_consumption.dart';
 import 'package:kitchen_king/features/notificatinos/notification_screen.dart';
 import 'package:kitchen_king/features/consumption_graph/total_consumption.dart';
 
@@ -15,17 +16,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _isLoading = true;
+  String? _error;
   String locationMessage = "Press the button to get location";
-
-  final Map<String, dynamic> jsonData = {
-    "27-03-2024": {
-      "gas_used": 1.5,
-    },
-    "28-03-2024": {
-      "gas_used": 1.2,
-    }
-  };
-
+  List<GasUsageData> _gasData = [];
   Future<void> _checkAndRequestLocation() async {
     LocationPermission permission = await Geolocator.checkPermission();
 
@@ -46,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Fetch location if permission is granted
     Position position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
@@ -56,352 +49,365 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _fetchGasData() async {
+    try {
+      // Reset state
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Get reference to the GasData collection
+      final collectionRef = FirebaseFirestore.instance.collection('GasData');
+
+      // Get documents from the collection
+      final querySnapshot = await collectionRef.get();
+      final List<GasUsageData> loadedData = [];
+
+      for (var doc in querySnapshot.docs) {
+        final docData = doc.data();
+
+        // Check if the document has a nested 'data' field
+        if (docData.containsKey('data') && docData['data'] is Map) {
+          final dataMap = docData['data'] as Map<String, dynamic>;
+
+          // Process each date entry in the nested data
+          dataMap.forEach((date, dailyData) {
+            if (dailyData is Map<String, dynamic>) {
+              loadedData.add(GasUsageData.fromFirestore(date, dailyData));
+            }
+          });
+        } else {
+          loadedData.add(GasUsageData.fromFirestore(doc.id, docData));
+        }
+      }
+      // Sort by date
+      loadedData.sort((a, b) => a.date.compareTo(b.date));
+      setState(() {
+        final int length = loadedData.length;
+        _gasData = loadedData.sublist(length >= 7 ? length - 7 : 0);
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching gas data: $e');
+      setState(() {
+        _error = 'Failed to load gas usage data: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGasData();
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<BarChartGroupData> barGroups = [];
-    List<String> dates = jsonData.keys.toList();
-    for (int i = 0; i < dates.length; i++) {
-      String date = dates[i];
-      double gasUsed = jsonData[date]["gas_used"] ?? 0.0;
-      barGroups.add(
-        BarChartGroupData(
-          x: i + 1,
-          barRods: [
-            BarChartRodData(
-              toY: gasUsed,
-              color: Colors.blue,
-              width: 16,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ],
-        ),
-      );
-    }
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
+    final GasUsageData? latestData = _gasData.isNotEmpty ? _gasData.last : null;
+    double percentage = latestData != null
+        ? ((latestData.remainingGas / latestData.cylinderSize) * 100).toDouble()
+        : 0;
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Dashboard'),
         centerTitle: true,
       ),
-      // appBar: AppBar(
-      //   toolbarHeight: 70,
-      //   automaticallyImplyLeading: false,
-      //   backgroundColor: const Color(0xFF45484A),
-      //   title: const Text(
-      //     "Dashboard",
-      //     style: TextStyle(
-      //       fontSize: 30,
-      //       fontWeight: FontWeight.bold,
-      //       color: Colors.white,
-      //     ),
-      //   ),
-      //   elevation: 20,
-      // ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Card(
-              margin: const EdgeInsets.only(top: 10),
-              color: Colors.white,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 20,
-                ),
-                height: height * .27,
-                width: width * .9,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "Gas Level Percentage",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            DailyConsumption.routeName,
                           ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.arrow_forward_ios_sharp,
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(
-                      thickness: 2.0,
-                      color: Colors.black54,
-                    ),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Column(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.all(10.0),
-                              child: FancyCircularIndicator(
-                                percentage: 75,
-                                size: 150,
-                                gradientColors: [
-                                  Colors.black,
-                                  Colors.black,
-                                ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(
+                                  width: 1,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(width: 10),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Card(
-                  margin: const EdgeInsets.all(10),
-                  color: Colors.white,
-                  elevation: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                    ),
-                    height: height * .25,
-                    width: width * .44,
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 5),
-                              child: Text(
-                                "Estimate Days",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              child: SizedBox(
+                                height: 180,
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Gas Level",
+                                      style: TextStyle(
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(30),
+                                      child: FancyCircularIndicator(
+                                        percentage: percentage,
+                                        size: 150,
+                                        gradientColors: const [
+                                          Colors.black,
+                                          Colors.black,
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                            // const Spacer(),
-                          ],
-                        ),
-                        Divider(
-                          thickness: 2.0,
-                          color: Colors.black54,
-                        ),
-                        Text(
-                          "28",
-                          style: TextStyle(
-                            fontSize: 45,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                Card(
-                  margin: const EdgeInsets.all(10),
-                  color: Colors.white,
-                  elevation: 10,
-                  child: Container(
-                    height: height * .25,
-                    width: width * .44,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      // vertical: ,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              "Total Consumption",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(5.0),
+                          child: Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(
+                                width: 1,
                               ),
                             ),
-                            IconButton(
-                              onPressed: () {
+                            child: const SizedBox(
+                              height: 180,
+                              child: Column(
+                                children: [
+                                  Text(
+                                    "Estimated Days",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                      fontFamily: "Roboto",
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Text(
+                                      "10",
+                                      style: TextStyle(
+                                        fontSize: 70,
+                                        fontFamily: "Roboto",
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    "Days",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                      fontFamily: "Roboto",
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: InkWell(
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        TotalConsumption.routeName,
+                      ),
+                      child: Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Colors.green.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Total Consumption",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Card(
+                        margin: const EdgeInsets.all(10),
+                        color: Colors.white,
+                        elevation: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                          ),
+                          height: height * .25,
+                          width: width * .93,
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    "Notifications",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        NotificationScreen.routeName,
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.arrow_forward_ios_sharp,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(
+                                thickness: 2.0,
+                                color: Colors.black54,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 30,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Restart Button
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.redAccent, // Restart button color
+                            ),
+                            child: IconButton(
+                              onPressed: () {},
+                              icon: const Icon(
+                                Icons.restart_alt,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            "Restart",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Gas Station Button
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.green, // Gas station button color
+                            ),
+                            child: IconButton(
+                              onPressed: () async {
+                                _checkAndRequestLocation();
                                 Navigator.pushNamed(
-                                  context,
-                                  TotalConsumption.routeName,
-                                );
+                                    context, MapsScreen.routeName);
                               },
                               icon: const Icon(
-                                Icons.arrow_forward_ios_sharp,
-                                size: 16,
+                                Icons.gas_meter_outlined,
+                                color: Colors.white,
                               ),
                             ),
-                          ],
-                        ),
-                        const Divider(
-                          thickness: 2.0,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            "Gas Station",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // On/Off Button
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue, // On/Off button color
+                            ),
+                            child: IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.power_settings_new,
+                                  color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            "Power",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Card(
-                  margin: const EdgeInsets.all(10),
-                  color: Colors.white,
-                  elevation: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                    ),
-                    height: height * .25,
-                    width: width * .93,
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              "Notifications",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  NotificationScreen.routeName,
-                                );
-                              },
-                              icon: const Icon(
-                                Icons.arrow_forward_ios_sharp,
-                                size: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Divider(
-                          thickness: 2.0,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
+                  const SizedBox(
+                    height: 30,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(
-              height: 30,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Restart Button
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.redAccent, // Restart button color
-                      ),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.restart_alt,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Restart",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                // Gas Station Button
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.green, // Gas station button color
-                      ),
-                      child: IconButton(
-                        onPressed: () async {
-                          _checkAndRequestLocation();
-                          Navigator.pushNamed(context, MapsScreen.routeName);
-                        },
-                        icon: const Icon(
-                          Icons.gas_meter_outlined,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Gas Station",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                // On/Off Button
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.blue, // On/Off button color
-                      ),
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.power_settings_new,
-                            color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Power",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 30,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
